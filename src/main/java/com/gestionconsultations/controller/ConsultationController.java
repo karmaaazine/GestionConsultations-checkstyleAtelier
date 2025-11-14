@@ -1,70 +1,56 @@
 package com.gestionconsultations.controller;
 
-import java.util.*;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import com.gestionconsultations.dto.RendezVousRequest;
+import com.gestionconsultations.entity.RendezVous;
+import com.gestionconsultations.service.ConsultationService;
 
+/**
+ * Contrôleur REST pour la gestion des consultations.
+ */
 @RestController
 @RequestMapping("/api")
 public class ConsultationController {
 
- @Autowired
- private ConsultationService consultationService;
+    @Autowired
+    private ConsultationService consultationService;
 
- private final int MAX_SIZE=100; // Violation: constante mal nommée
+    /**
+     * Crée un nouveau rendez-vous.
+     *
+     * @param request DTO contenant les informations du rendez-vous
+     * @return Le rendez-vous créé ou null en cas d'erreur
+     */
+    @PostMapping("/rendezvous")
+    public ResponseEntity<RendezVous> creerRendezVous(@RequestBody RendezVousRequest request) {
+        try {
+            RendezVous rdv = consultationService.creerRendezVous(request);
+            if (rdv != null) {
+                return ResponseEntity.status(HttpStatus.CREATED).body(rdv);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
 
- // Violation: méthode trop longue et trop de paramètres
- @PostMapping("/rendezvous")
- public RendezVous creerRendezVous(
- @RequestParam Long patientId,
- @RequestParam Long medecinId,
- @RequestParam Long salleId,
- @RequestParam String date,
- @RequestParam String heureDebut,
- @RequestParam String heureFin,
- @RequestParam String motif
- ) {
- // Violation: magic number
- if(patientId==null||medecinId==null){return null;}
- try {
- // Violation: logique complexe dans le controller
- Patient patient =
-patientRepository.findById(patientId).orElse(null);
- Medecin medecin =
-medecinRepository.findById(medecinId).orElse(null);
- Salle salle = salleRepository.findById(salleId).orElse(null);
- if(patient != null && medecin != null && salle != null) {
- RendezVous rdv = new RendezVous();
- rdv.setPatient(patient);
- rdv.setMedecin(medecin);
- rdv.setSalle(salle);
- rdv.setDateRdv(date);
- rdv.setHeureDebut(heureDebut);
- rdv.setHeureFin(heureFin);
- rdv.setMotifConsultation(motif);
- // Violation: gestion d'exception générique
- return consultationService.save(rdv);
- }
- } catch(Exception e) {
- e.printStackTrace();
- }
- return null;
- }
-
- // Violation: méthode sans javadoc
- public List<RendezVous> getRendezVousByMedecin(Long id) {
- List<RendezVous> result = new ArrayList<>();
- // Violation: complexité cyclomatique élevée
- for(RendezVous rdv : consultationService.findAll()) {
- if(rdv.getMedecin().getId().equals(id)) {
- if(rdv.getDateRdv() != null) {
- if(rdv.getStatut().equals("PLANIFIE")) {
- result.add(rdv);
- }
- }
- }
- }
- return result;
- }
+    /**
+     * Récupère tous les rendez-vous planifiés pour un médecin donné.
+     *
+     * @param medecinId L'identifiant du médecin
+     * @return La liste des rendez-vous planifiés
+     */
+    @GetMapping("/medecins/{medecinId}/rendezvous")
+    public List<RendezVous> getRendezVousByMedecin(@PathVariable Long medecinId) {
+        return consultationService.getRendezVousPlanifiesByMedecin(medecinId);
+    }
 }
-
